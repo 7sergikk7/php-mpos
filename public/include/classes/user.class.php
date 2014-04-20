@@ -470,7 +470,7 @@ class User extends Base {
    * @param strToken string Token for confirmation
    * @return bool
    **/
-  public function updateAccount($userID, $address, $threshold, $donate, $email, $is_anonymous, $strToken) {
+  public function updateAccount($userID, $address, $threshold, $donate, $email, $timezone, $is_anonymous, $strToken) {
     $this->debug->append("STA " . __METHOD__, 4);
     $bUser = false;
     $donate = round($donate, 2);
@@ -538,10 +538,10 @@ class User extends Base {
         return false;
       }
     }
-    
+
     // We passed all validation checks so update the account
-    $stmt = $this->mysqli->prepare("UPDATE $this->table SET coin_address = ?, ap_threshold = ?, donate_percent = ?, email = ?, is_anonymous = ? WHERE id = ?");
-    if ($this->checkStmt($stmt) && $stmt->bind_param('sddsii', $address, $threshold, $donate, $email, $is_anonymous, $userID) && $stmt->execute()) {
+    $stmt = $this->mysqli->prepare("UPDATE $this->table SET coin_address = ?, ap_threshold = ?, donate_percent = ?, email = ?, timezone = ?, is_anonymous = ? WHERE id = ?");
+    if ($this->checkStmt($stmt) && $stmt->bind_param('sddssii', $address, $threshold, $donate, $email, $timezone, $is_anonymous, $userID) && $stmt->execute()) {
       $this->log->log("info", $this->getUserName($userID)." updated their account details");
       return true;
     }
@@ -578,12 +578,12 @@ class User extends Base {
     $this->debug->append("STA " . __METHOD__, 4);
     $user = array();
     $password_hash = $this->getHash($password);
-    $stmt = $this->mysqli->prepare("SELECT username, id, is_admin FROM $this->table WHERE LOWER(username) = LOWER(?) AND pass = ? LIMIT 1");
-    if ($this->checkStmt($stmt) && $stmt->bind_param('ss', $username, $password_hash) && $stmt->execute() && $stmt->bind_result($row_username, $row_id, $row_admin)) {
+    $stmt = $this->mysqli->prepare("SELECT username, id, timezone, is_admin FROM $this->table WHERE LOWER(username) = LOWER(?) AND pass = ? LIMIT 1");
+    if ($this->checkStmt($stmt) && $stmt->bind_param('ss', $username, $password_hash) && $stmt->execute() && $stmt->bind_result($row_username, $row_id, $row_timezone, $row_admin)) {
       $stmt->fetch();
       $stmt->close();
       // Store the basic login information
-      $this->user = array('username' => $row_username, 'id' => $row_id, 'is_admin' => $row_admin);
+      $this->user = array('username' => $row_username, 'id' => $row_id, 'timezone' => $row_timezone, 'is_admin' => $row_admin);
       return strtolower($username) === strtolower($row_username);
     }
     return $this->sqlError();
@@ -683,7 +683,7 @@ class User extends Base {
     $this->debug->append("Fetching user information for user id: $userID");
     $stmt = $this->mysqli->prepare("
       SELECT
-      id, username, pin, api_key, is_admin, is_anonymous, email, no_fees,
+      id, username, pin, api_key, is_admin, is_anonymous, email, timezone, no_fees,
       IFNULL(donate_percent, '0') as donate_percent, coin_address, ap_threshold
       FROM $this->table
       WHERE id = ? LIMIT 0,1");
